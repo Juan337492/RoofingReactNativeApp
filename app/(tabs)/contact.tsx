@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { EmailJSResponseStatus, send } from '@emailjs/react-native';
+import React, { useEffect, useState } from 'react';
 import { Alert, Dimensions, Image, Linking, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 const PhoneImage = require('@/assets/images/Phone.png'); // Add your phone icon image
@@ -12,12 +13,16 @@ interface FormData {
 }
 
 export default function ContactScreen() {
+  
   const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
     phone: '',
     description: ''
   });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const handleInputChange = (field: keyof FormData, value: string) => {
     setFormData(prev => ({
@@ -26,27 +31,72 @@ export default function ContactScreen() {
     }));
   };
 
+  // Auto-hide success message after 5 seconds
+  useEffect(() => {
+    if (showSuccess) {
+      const timer = setTimeout(() => {
+        setShowSuccess(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccess]);
+
   const handleSubmit = async () => {
-    // Validate form
+    // Prevent multiple submissions
+    if (isSubmitting) return;
+
     if (!formData.name || !formData.email || !formData.description) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
 
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
+    setIsSubmitting(true);
+
     try {
-      // You can implement your form submission logic here
-      // For now, we'll just show an alert
-      Alert.alert('Success', 'Your message has been sent!');
+      console.log('Attempting to send email...'); // Debug log
       
-      // Reset form
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        description: ''
-      });
-    } catch (error) {
-      Alert.alert('Error', 'Failed to send message. Please try again.');
+      const result = await send(
+        'service_roofing', // EmailJS service ID
+        'template_oitj9vp', // EmailJS template ID
+        {
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          message: formData.description,
+        },
+        {
+          publicKey: 'UK6AdWIUcm9VHsdYJ', // EmailJS public key
+        },
+      );
+
+      console.log('Email sent successfully:', result); // Debug log
+      
+      // Show success message and reset form
+      setShowSuccess(true);
+      setFormData({ name: '', email: '', phone: '', description: '' });
+      
+    } catch (err) {
+      console.error('Email sending error:', err); // Debug log
+      
+      let errorMessage = 'An unexpected error occurred. Please try again.';
+      
+      if (err instanceof EmailJSResponseStatus) {
+        console.log('EmailJS Request Failed...', err);
+        errorMessage = `Failed to send message (${err.status}: ${err.text}). Please check your connection and try again.`;
+      } else if (err instanceof Error) {
+        errorMessage = `Error: ${err.message}`;
+      }
+      
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -54,10 +104,39 @@ export default function ContactScreen() {
     Linking.openURL('tel:4047849030');
   };
 
+  const handleCalendlyOpen = () => {
+    Linking.openURL('https://calendly.com/dynamic-rcllc/roof');
+  };
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} className='bg-stone-800'>
+      {/* Success Message */}
+      {showSuccess && (
+        <View className="bg-green-100 border-l-4 border-green-500 p-4 mb-4 mx-4 rounded-r-lg">
+          <View className="flex-row items-center">
+            <View className="flex-shrink-0">
+              <Text className="text-green-600 text-xl">✓</Text>
+            </View>
+            <View className="ml-3 flex-1">
+              <Text className="text-green-800 font-semibold text-base">
+                Message Sent Successfully!
+              </Text>
+              <Text className="text-green-700 text-sm mt-1">
+                Thank you for contacting us. We'll get back to you within 24 hours.
+              </Text>
+            </View>
+            <TouchableOpacity 
+              onPress={() => setShowSuccess(false)}
+              className="ml-3"
+            >
+              <Text className="text-green-600 text-lg font-bold">×</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* Contact Form */}
-      <View style={styles.formContainer}>
+      <View style={styles.formContainer} className='sm:w-5/6 sm:mx-auto'>
         <Text style={styles.title}>Contact us</Text>
         
         {/* Phone Section */}
@@ -79,6 +158,7 @@ export default function ContactScreen() {
             onChangeText={(value) => handleInputChange('name', value)}
             placeholder="Enter your name"
             placeholderTextColor="#9CA3AF"
+            editable={!isSubmitting}
           />
         </View>
 
@@ -95,13 +175,14 @@ export default function ContactScreen() {
             placeholderTextColor="#9CA3AF"
             keyboardType="email-address"
             autoCapitalize="none"
+            editable={!isSubmitting}
           />
         </View>
 
         {/* Phone Input */}
         <View style={styles.inputContainer}>
           <Text style={styles.label}>
-            Phone number <Text style={styles.optional}>(overflow)</Text>
+            Phone number <Text style={styles.optional}>(optional)</Text>
           </Text>
           <TextInput
             style={styles.textInput}
@@ -110,13 +191,14 @@ export default function ContactScreen() {
             placeholder="Enter your phone number"
             placeholderTextColor="#9CA3AF"
             keyboardType="phone-pad"
+            editable={!isSubmitting}
           />
         </View>
 
         {/* Description Input */}
         <View style={styles.inputContainer}>
           <Text style={styles.label}>
-            Short description <Text style={styles.required}>*</Text> <Text style={styles.optional}>(overflow)</Text>
+            Short description <Text style={styles.required}>*</Text>
           </Text>
           <TextInput
             style={[styles.textInput, styles.textArea]}
@@ -127,15 +209,33 @@ export default function ContactScreen() {
             multiline={true}
             numberOfLines={4}
             textAlignVertical="top"
+            editable={!isSubmitting}
           />
         </View>
 
         {/* Submit Button */}
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-            <Text style={styles.submitButtonText}>Submit</Text>
+          <TouchableOpacity 
+            style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]} 
+            onPress={handleSubmit}
+            disabled={isSubmitting}
+          >
+            <Text style={styles.submitButtonText}>
+              {isSubmitting ? 'Sending...' : 'Submit'}
+            </Text>
           </TouchableOpacity>
         </View>
+      </View>
+
+      {/* Calendly Scheduling Section */}
+      <View style={styles.calendlyContainer} className='sm:w-5/6 sm:mx-auto'>
+        <Text style={styles.calendlyTitle}>Schedule Your Roof Consultation</Text>
+        <Text style={styles.calendlyDescription}>
+          Book a convenient time for your free roof inspection and consultation.
+        </Text>
+        <TouchableOpacity style={styles.calendlyButton} onPress={handleCalendlyOpen}>
+          <Text style={styles.calendlyButtonText}>Schedule Appointment</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -144,7 +244,6 @@ export default function ContactScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1F2937', // bg-gray-800 equivalent
   },
   contentContainer: {
     padding: 16,
@@ -225,9 +324,55 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     minWidth: 120,
   },
+  submitButtonDisabled: {
+    backgroundColor: '#D1D5DB', // Disabled color
+  },
   submitButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  // New Calendly styles
+  calendlyContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 32,
+    marginTop: 24,
+    alignItems: 'center',
+  },
+  calendlyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  calendlyDescription: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  calendlyButton: {
+    backgroundColor: '#10B981', // Green color for scheduling
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 8,
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  calendlyButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
   },

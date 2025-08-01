@@ -27,7 +27,7 @@ export default function AboutScreen() {
       </View>
       
       <View style={styles.contentContainer}>
-        <Text style={styles.descriptionText} className="xl:text-lg md:px-8 xl:px-25">
+        <Text style={styles.descriptionText} className="xl:text-lg md:px-8 xl:px-48">
           Dynamic Roofing and Construction is a leading roofing company serving Dallas, GA, and the surrounding areas.
           With years of experience, we have built a reputation for delivering exceptional roofing services.
           Our team of skilled and certified roofers is committed to providing top-notch craftsmanship, using high-quality materials to ensure the longevity and durability of your roof.
