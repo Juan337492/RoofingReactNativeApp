@@ -1,7 +1,7 @@
 import "@/global.css";
 import { Dimensions, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-const AboutScreenHeaderImage = require('@/assets/images/BrownRoof.png');
+const AboutScreenHeaderImage = require('@/assets/images/BrownRoof.jpg');
 const RoofingWorkImage = require('@/assets/images/RooferWithRope.jpg');
 const SidingWorkImage = require('@/assets/images/Siding.jpg');
 const LeafImage = require('@/assets/images/Leaf.png');
